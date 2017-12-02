@@ -1,7 +1,7 @@
 # xmobar-stocks
 xmobar-stocks is a program to fetch stock quotes on-demand.
 
-![Screenshot of xmobar-stocks](https://raw.github.com/vicfryzel/xmobar-stocks/master/screenshot.png)
+![Screenshot of xmobar-stocks](screenshot.png)
 
 It is a replacement for the popular https://github.com/jacobtolar/xmobar-stocks,
 which no longer functions because the Yahoo Finance API has been disabled. This updated version
