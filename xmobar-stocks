@@ -59,9 +59,10 @@ To install Requests on an Ubuntu instance, run:
 
 """
 
+from __future__ import print_function
+
 __author__ = 'vic.fryzel@gmail.com (Vic Fryzel)'
 
-from __future__ import print_function
 import argparse
 import logging
 import os
