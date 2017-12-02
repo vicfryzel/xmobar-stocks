@@ -44,6 +44,7 @@ Typical usage within xmobar config (after putting xmobar-stocks in your PATH):
         ...
       ],
       ...
+      template = "...   %stocks%   ..."
     }
 
 To use this program, you must register for an Alpha Vantage API key, and pass
