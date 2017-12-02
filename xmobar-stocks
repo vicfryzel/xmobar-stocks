@@ -1,0 +1,140 @@
+#!/usr/bin/env python
+
+# Copyright 2017 Vic Fryzel <vic.fryzel@gmail.com>
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+# https://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Fetch and print stock quotes for consumption in xmobar.
+
+This is a replacement for the popular xmobar-stocks Perl script at
+https://github.com/jacobtolar/xmobar-stocks. That original Perl script no
+longer works because it relied on the disabled Yahoo Finance API.
+
+xmobar-stocks fetches stock quotes from https://www.alphavantage.co and
+prints them to stdout in the following format:
+
+  symbol1: $<price in USD>, symbol2: $<price in USD>, ...
+
+Typical usage:
+  
+  xmobar-stocks --symbols goog,tsla,amzn --api-key 1234567890ABCDEF
+
+-s/--symbols [list]: takes a comma-separated list of stock symbols.
+-k/--api-key [key]: takes an Alpha Vantage API key.
+-d/--debug: (Optional) shows HTTP request information.
+-h/--help: (Optional) display usage information and exit.
+
+Typical usage within xmobar config (after putting xmobar-stocks in your PATH):
+
+    Config {
+      ...
+      commands = [
+        ...
+        Run Com "xmobar-stocks" ["-s", "<list-of-symbols>", "-k", "<api-key>"] "stocks" 60,
+        ...
+      ],
+      ...
+    }
+
+To use this program, you must register for an Alpha Vantage API key, and pass
+your API key as a parameter when calling this script. To register an API key,
+go here: https://www.alphavantage.co/
+
+xmobar-stocks is tested to work with both 2.7.13 and 3.5.3. It requires the
+Requests library, found here: http://docs.python-requests.org/en/master/
+
+To install Requests on an Ubuntu instance, run:
+
+  aptitude install python-requests
+
+"""
+
+__author__ = 'vic.fryzel@gmail.com (Vic Fryzel)'
+
+from __future__ import print_function
+import argparse
+import logging
+import os
+import sys
+
+import requests
+
+
+logging.basicConfig(format='%(name)s %(asctime)s %(levelname)s: %(message)s')
+LOGGER = logging.getLogger(os.path.basename(__file__))
+
+BASE_URL = 'http://www.alphavantage.co/query'
+
+
+def main():
+  parser = argparse.ArgumentParser(prog='xmobar-stocks')
+  parser.add_argument('-s', '--symbols', type=str, nargs=1, required=True,
+                      help='comma-separated list of stock symbols')
+  parser.add_argument('-k', '--api-key', dest='api_key', type=str, nargs=1,
+                      required=True,
+                      help='Alpha Vantage API key '
+                           '(see https://www.alphavantage.co/)')
+  parser.add_argument('-d', '--debug', action='store_true',
+                      help='show debug messages')
+  
+  args = parser.parse_args()
+  symbols = args.symbols[0].split(',')
+  api_key = args.api_key[0]
+
+  if args.debug:
+    LOGGER.setLevel(logging.DEBUG)
+  
+  params = {'function': 'TIME_SERIES_INTRADAY',
+            'apikey': api_key,
+            'symbol': '',
+            'outputsize': 'compact',
+            'interval': '15min',
+            'datatype': 'csv'}
+  
+  output = ''
+  
+  for symbol in symbols:
+    params['symbol'] = symbol
+
+    fail_message = '%s: N/A, ' % symbol
+  
+    LOGGER.debug('Requesting %s: %s %s', symbol, BASE_URL, params)
+    r = requests.get(BASE_URL, params=params)
+    if not r.ok:
+      LOGGER.debug('HTTP request failed for %s: %s %s', symbol, r.status_code,
+                   r.reason)
+      output += fail_message
+      continue
+  
+    lines = r.text.split('\n')
+    if len(lines) == 0:
+      LOGGER.debug('Failed to get quote for %s:\n%s', symbol, r.text)
+      output += fail_message
+      continue
+  
+    # Skip CSV column labels header at index 0
+    latest_quote_line = lines[1]
+    latest_quote_segments = latest_quote_line.split(',')
+    if len(latest_quote_segments) < 5:
+      LOGGER.debug('Failed to get quote for %s: %s', symbol, latest_quote_line)
+      output += fail_message
+      continue
+  
+    quote = float(latest_quote_segments[4])
+    output += '%s: $%.2f, ' % (symbol, quote)
+
+  print(output.strip(', '))
+
+
+if __name__ == '__main__':
+  main()
